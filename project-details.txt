@@ -1,0 +1,113 @@
+1. The Core Concept: "The Tax Water-Bucket"
+Instead of a pie chart (which is static), we will build a Flow Visualization. Imagine a large tank (Gross Income) pouring water into smaller buckets.
+The 5-Bucket Flow:
+Gross Income Tank: The starting amount.
+The "Shielded" Bucket (Non-Taxable): This fills up first. It contains your Pension, Rent Relief, and Consolidated Relief Allowance. The taxman cannot touch this.
+The "Taxable" Bucket: Whatever overflows from the Shielded Bucket lands here.
+The "Government's Cut" Bucket: We apply the tax bands to the Taxable Bucket to fill this small cup.
+The "Yours to Keep" Bucket: The final reservoir. This is your Net Pay.
+
+2. Technical Architecture (Next.js)
+We will use the Next.js App Router for modern routing and Server Components where possible for SEO/performance.
+Framework: Next.js 14+ (App Router)
+Styling: Tailwind CSS (essential for the "clean" UI you want).
+State Management: Zustand (Simpler than Redux, perfect for a calculator with many moving parts).
+Visualization: Framer Motion (for the filling animations) + Recharts (for historical data).
+Persistence: Supabase (PostgreSQL) or Firebase (to save user data for the "Manager" aspect).
+
+3. The User Journey & Onboarding (Step-by-Step)
+We will implement a "Wizard" pattern. Do not overwhelm the user.
+Phase 1: The Gateway (Landing Page)
+Headline: "Master Your Money. Understand Your Tax."
+Action: Three distinct cards (as discussed).
+Individual (Employees/Freelancers)
+Small Biz (<₦100m)
+Corporate (>₦100m)
+Phase 2: The Smart Onboarding (The "Interview")
+Step 1: "Let's start with your earnings." (Input Gross Salary).
+Step 2: "Do you pay rent?" (Input Rent -> Auto-calculate 20% relief).
+Step 3: "Do you have a Pension?" (Toggle Yes/No -> Auto-calculate 8%).
+Step 4: For Business: "What is your turnover?" (If >₦100m, auto-switch to Corporate mode).
+
+4. Building the "Tax Bucket" Component (Code Logic)
+Here is how we structure the logic in TypeScript to power the visualization.
+TypeScript
+// types/tax.ts
+
+interface TaxBuckets {
+  grossIncome: number;
+  statutoryDeductions: {
+    pension: number;   // 8%
+    nhf: number;       // 2.5% (optional)
+  };
+  reliefs: {
+    cra: number;       // Consolidated Relief Allowance
+    rentRelief: number; // The new 2025 Rent Relief (Lower of 20% Rent or ₦500k)
+  };
+  taxableIncome: number;
+  totalTax: number;
+  netPay: number;
+}
+
+// utility/taxCalculator.ts
+
+export const calculateTaxBuckets = (gross: number, rent: number): TaxBuckets => {
+  // 1. Calculate Deductions
+  const pension = gross * 0.08;
+  
+  // 2. Calculate New Rent Relief (2025 Act)
+  const rentReliefCalc = rent * 0.20;
+  const actualRentRelief = Math.min(rentReliefCalc, 500000); // Cap at 500k
+
+  // 3. Consolidated Relief Allowance (Standard formula)
+  // Note: Check specific 2025 Act text for CRA retention. Assuming standard:
+  const cra = 200000 + (gross * 0.20); 
+
+  // 4. Total Tax-Free Shield
+  const totalRelief = pension + actualRentRelief + cra;
+
+  // 5. Taxable Income
+  // Ensure it doesn't go below zero
+  const taxableIncome = Math.max(0, gross - totalRelief);
+
+  // 6. Apply Tax Bands (2025 Progressive Rates)
+  let tax = 0;
+  let remaining = taxableIncome;
+
+  // Band 1: First 800k is Exempt
+  const exemptSlice = Math.min(remaining, 800000);
+  remaining -= exemptSlice;
+
+  // Band 2: Next tranche (e.g., 15%)
+  // ... (Add full band logic here) ...
+
+  return {
+    grossIncome: gross,
+    statutoryDeductions: { pension, nhf: 0 },
+    reliefs: { cra, rentRelief: actualRentRelief },
+    taxableIncome,
+    totalTax: tax,
+    netPay: gross - pension - tax // Simple Net Pay
+  };
+};
+
+
+5. The "Manager" Feature (The Retention Hook)
+Competitors usually stop at "Calculator." To be a "Manager," you need these features:
+"Payday Simulator":
+Allow the user to set their payday (e.g., 25th).
+Send a notification: "Payday is coming! Expect ₦X amount. Here is where your tax is going."
+"The Raise Negotiator":
+A tool where users type a Target Net Salary (e.g., "I want to take home ₦500k").
+The app reverse-calculates the Gross Salary they need to ask for during an interview.
+"Business Compliance Tracker" (For Small Biz):
+A dashboard that counts down to the filing deadline (June 30th).
+A prominent "Generate Zero-Tax Certificate" button (generates a PDF stating they owe ₦0 based on <₦100m turnover).
+6. UI Visual Hierarchy (Tailwind)
+Background: Clean white or very soft gray (bg-slate-50).
+The Bucket: Use a glass-morphism card (backdrop-blur-md bg-white/30).
+The Water:
+Income: Green gradient (from-emerald-400 to-teal-500).
+Tax: Orange/Red warning gradient (from-orange-400 to-red-500).
+Reliefs: Blue "Safety" gradient (from-blue-400 to-cyan-500).
+
