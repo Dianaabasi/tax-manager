@@ -31,6 +31,7 @@ export interface TaxBuckets {
     reliefs: {
         cra: number;
         rentRelief: number;
+        custom: number;
     };
     taxableIncome: number;
     totalTax: number;
@@ -41,42 +42,28 @@ export const calculateTaxBuckets = (
     grossIncome: number,
     rentPaid: number,
     pensionRate: number = 8,
-    hasNhf: boolean = false
+    hasNhf: boolean = false,
+    customDeductionsTotal: number = 0
 ): TaxBuckets => {
     // 1. Statutory Deductions
     const pension = (grossIncome * pensionRate) / 100;
     const nhf = hasNhf ? (grossIncome * 2.5) / 100 : 0;
 
     // 2. Reliefs
-    // CRA Calculation - Note: The user prompt for the guide page didn't explicitly mention the old "200k + 20%" CRA equation in the "Deductions" section.
-    // Ideally, if the Tax Shield section mentioned "CRA" we would use it.
-    // However, the example calculation ONLY deducted Pension and Rent Relief.
-    // It listed: "Total Deductions: 340,000" (Pension 240k + Rent 100k).
-    // This implies the specific CRA (Consolidated Relief Allowance) might have been replaced or simplified or is just not part of this specific "Simple" explanation.
-    // BUT the previous implementation included CRA. 
-    // Given the explicit example provided by the user:
-    // "Scenario: Emeka earns 3m... Minus Deductions: Pension (8%): -240k, Rent Relief: -100k. Total Deductions: 340k. Taxable: 2,660,000"
-    // This MATCHES EXACTLY: 3m - 240k - 100k = 2.66m.
-    // If CRA (200k + 20% of gross) existed, it would be another huge deduction.
-    // Thus, in this new 2025 Reform logic provided by the user, the standard CRA seems to be REMOVED or replaced by the 0% band.
-    // I will REMOVE CRA to match the user's specific calculation example.
-
     const cra = 0;
-
     const rentRelief = Math.min(rentPaid * 0.2, 500000); // 20% of rent, capped at 500k
+    const custom = Math.max(0, customDeductionsTotal);
 
-    // 3. Taxable Income
-    // Deduct everything tax exempt
-    const totalReliefs = pension + nhf + cra + rentRelief;
+    // 3. Taxable Income — deduct everything tax exempt
+    const totalReliefs = pension + nhf + cra + rentRelief + custom;
     const taxableIncome = Math.max(0, grossIncome - totalReliefs);
 
-    // 4. Calculate Tax
+    // 4. Calculate Tax using progressive bands
     let tax = 0;
     let remainingIncome = taxableIncome;
 
     for (const band of TAX_BANDS) {
         if (remainingIncome <= 0) break;
-
         const taxableAmount = Math.min(remainingIncome, band.limit);
         tax += taxableAmount * band.rate;
         remainingIncome -= taxableAmount;
@@ -84,42 +71,36 @@ export const calculateTaxBuckets = (
 
     return {
         grossIncome,
-        statutoryDeductions: {
-            pension,
-            nhf,
-        },
-        reliefs: {
-            cra,
-            rentRelief,
-        },
+        statutoryDeductions: { pension, nhf },
+        reliefs: { cra, rentRelief, custom },
         taxableIncome,
         totalTax: tax,
         netPay: grossIncome - tax - pension - nhf,
     };
 };
 
-export const calculateReverseData = (targetNetPay: number): number => {
-    // Simple approximation for reverse calculation
-    // This is computationally expensive to solve exactly due to progressive bands
-    // Using binary search approach
+export const calculateReverseData = (
+    targetNetPay: number,
+    customDeductionsTotal: number = 0
+): number => {
+    // Binary search to find the gross that yields the target net pay
     let low = targetNetPay;
-    let high = targetNetPay * 2; // Initial upper bound guess
-    let guess = 0;
+    let high = targetNetPay * 2;
 
-    // Find upper bound first
+    // Find upper bound
     while (true) {
-        const res = calculateTaxBuckets(high, 0, 8, false);
+        const res = calculateTaxBuckets(high, 0, 8, false, customDeductionsTotal);
         if (res.netPay >= targetNetPay) break;
         low = high;
         high *= 2;
     }
 
-    // Binary search
+    // Binary search (20 iterations = accurate to within ₦1)
     for (let i = 0; i < 20; i++) {
-        guess = (low + high) / 2;
-        const res = calculateTaxBuckets(guess, 0, 8, false);
+        const guess = (low + high) / 2;
+        const res = calculateTaxBuckets(guess, 0, 8, false, customDeductionsTotal);
 
-        if (Math.abs(res.netPay - targetNetPay) < 100) {
+        if (Math.abs(res.netPay - targetNetPay) < 1) {
             return guess;
         }
 
@@ -130,5 +111,5 @@ export const calculateReverseData = (targetNetPay: number): number => {
         }
     }
 
-    return guess;
+    return (low + high) / 2;
 };

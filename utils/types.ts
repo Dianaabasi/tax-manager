@@ -40,6 +40,7 @@ export interface TaxBuckets {
     reliefs: {
         cra: number; // Consolidated Relief Allowance
         rentRelief: number;
+        custom: number; // Sum of user-defined custom deductions
     };
     taxableIncome: number;
     totalTax: number;
@@ -69,4 +70,27 @@ export interface TaxInput {
     rentPaid: number;
     pensionRate: number;
     hasNhf: boolean;
+}
+
+// Business input state
+export interface BusinessInput {
+    businessName: string;
+    annualTurnover: number;
+    assessableProfit: number;
+}
+
+// Document file for vault
+export interface DocumentFile {
+    name: string;
+    size: number;
+    type: string;
+    path: string;
+    uploadedAt: string;
+}
+
+// Custom non-taxable deduction added by the user
+export interface CustomDeduction {
+    id: string;
+    label: string;
+    amount: number;
 }
