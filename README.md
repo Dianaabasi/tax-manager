@@ -70,23 +70,6 @@ TaxFlow is a modern, full-stack web application that makes Nigerian personal inc
 
 ---
 
-#### Storage bucket (Document Vault)
-
-1. Go to **Supabase Dashboard → Storage → New Bucket**
-2. Name: `tax_documents`
-3. **Public bucket**: OFF
-4. **Restrict file size**: ON → 10 MB
-5. **Restrict MIME types**: ON → `image/jpeg, image/png, image/jpg, image/webp, application/pdf`
-
-Then add a Storage RLS policy:
-
-```sql
-create policy "Users manage own documents"
-on storage.objects for all
-using (auth.uid()::text = (storage.foldername(name))[1])
-with check (auth.uid()::text = (storage.foldername(name))[1]);
-```
-
 ### 5. Run the development server
 
 ```bash
