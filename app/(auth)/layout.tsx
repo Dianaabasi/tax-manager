@@ -24,7 +24,7 @@ export default function AuthLayout({
 
             {/* Footer */}
             <footer className="p-6 text-center text-sm text-zinc-500">
-                © 2025 TaxFlow. Master your money, understand your tax.
+                © 2026 TaxFlow. Master your money, understand your tax.
             </footer>
         </div>
     );
