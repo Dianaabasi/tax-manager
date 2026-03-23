@@ -39,8 +39,10 @@ export async function GET(request: Request) {
         });
 
         if (!error) {
-            // Session is now established — send user to set their new password
-            return NextResponse.redirect(`${origin}/update-password`);
+            // Session is now established — redirect to the page specified by next
+            // (defaults to /update-password if not set)
+            const destination = next !== '/dashboard' ? next : '/update-password';
+            return NextResponse.redirect(`${origin}${destination}`);
         }
     }
 
